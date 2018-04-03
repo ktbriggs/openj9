@@ -231,7 +231,13 @@ MM_CollectorLanguageInterfaceImpl::scavenger_masterThreadGarbageCollect_scavenge
 {
 #if defined(J9VM_GC_FINALIZATION)
 	/* Alert the finalizer if work needs to be done */
-	if(this->scavenger_getFinalizationRequired()) {
+	bool finalizationRequired = false;
+	if (!_extensions->isEvacuatorEnabled()) {
+		finalizationRequired = this->scavenger_getFinalizationRequired();
+	} else {
+		finalizationRequired = _extensions->scavenger->isEvacuatorFlagSet(MM_EvacuatorDelegate::finalizationRequired);
+	}
+	if (finalizationRequired) {
 		omrthread_monitor_enter(_javaVM->finalizeMasterMonitor);
 		_javaVM->finalizeMasterFlags |= J9_FINALIZE_FLAGS_MASTER_WAKE_UP;
 		omrthread_monitor_notify_all(_javaVM->finalizeMasterMonitor);
