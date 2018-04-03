@@ -79,4 +79,3 @@ void
 MM_CollectorLanguageInterfaceImpl::tearDown(MM_EnvironmentBase *env)
 {
 }
-

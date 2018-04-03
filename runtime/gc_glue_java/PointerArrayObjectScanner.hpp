@@ -111,7 +111,7 @@ public:
 			GC_ArrayObjectModel *arrayObjectModel = &(env->getExtensions()->indexableObjectModel);
 			omrarrayptr_t arrayPtr = (omrarrayptr_t)objectPtr;
 			uintptr_t sizeInElements = arrayObjectModel->getSizeInElements(arrayPtr);
-			fomrobject_t *basePtr = (fj9object_t *)arrayObjectModel->getDataPointerForContiguous(arrayPtr);
+			fomrobject_t *basePtr = (fomrobject_t *)arrayObjectModel->getDataPointerForContiguous(arrayPtr);
 			fomrobject_t *scanPtr = basePtr + startIndex;
 			fomrobject_t *limitPtr = basePtr + sizeInElements;
 			fomrobject_t *endPtr = limitPtr;
