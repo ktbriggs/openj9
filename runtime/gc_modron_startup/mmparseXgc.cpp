@@ -1075,6 +1075,11 @@ j9gc_initialize_parse_gc_colon(J9JavaVM *javaVM, char **scan_start)
 		goto _exit;
 	}
 		
+	if(try_scan(scan_start, "recursiveScanOrdering")) {
+		extensions->evacuatorEnabled = true;
+		goto _exit;
+	}
+
 #endif /* J9VM_GC_MODRON_SCAVENGER */
 
 	if(try_scan(scan_start, "alwaysCallWriteBarrier")) {
