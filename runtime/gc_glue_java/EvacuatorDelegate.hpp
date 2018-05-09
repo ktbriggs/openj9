@@ -113,10 +113,10 @@ public:
 	 * This is called from the controller before activating any evacuator instances to allow the
 	 * delegate to set up evacuator flags for the evacuation cycle.
 	 *
-	 * @param extensions points to jvm extensions
+	 * @param env environment for calling thread
 	 * @return preset evacuator flags for the cycle
 	 */
-	static uintptr_t prepareForEvacuation(MM_GCExtensionsBase *extensions);
+	static uintptr_t prepareForEvacuation(MM_EnvironmentBase *env);
 
 	/**
 	 * Evacuator calls this when it starts starts work in an evacuation cycle. This binds the evacuator

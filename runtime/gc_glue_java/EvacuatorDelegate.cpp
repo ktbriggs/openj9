@@ -26,6 +26,7 @@
 #include "j9nonbuilder.h"
 #include "modron.h"
 
+#include "ConfigurationDelegate.hpp"
 #include "CycleState.hpp"
 #include "Evacuator.hpp"
 #include "EvacuatorDelegate.hpp"
@@ -37,8 +38,11 @@
 #endif /* defined(J9VM_GC_FINALIZATION) */
 #include "ForwardedHeader.hpp"
 #include "GCExtensions.hpp"
+#include "HeapRegionDescriptorStandard.hpp"
+#include "HeapRegionIteratorStandard.hpp"
 #include "ObjectAccessBarrier.hpp"
 #include "OwnableSynchronizerObjectBuffer.hpp"
+#include "OwnableSynchronizerObjectList.hpp"
 #include "PointerArrayObjectScanner.hpp"
 #include "ReferenceObjectBuffer.hpp"
 #include "ReferenceObjectScanner.hpp"
@@ -66,8 +70,34 @@ MM_EvacuatorDelegate::tearDown()
 }
 
 uintptr_t
-MM_EvacuatorDelegate::prepareForEvacuation(MM_GCExtensionsBase *extensions)
+MM_EvacuatorDelegate::prepareForEvacuation(MM_EnvironmentBase *env)
 {
+	MM_GCExtensions *extensions = MM_GCExtensions::getExtensions(env);
+
+	/* Sum the count of OwnableSynchronizerObject candidates before clearing java stats */
+	UDATA ownableSynchronizerCandidates = extensions->scavengerJavaStats._ownableSynchronizerNurserySurvived + extensions->allocationStats._ownableSynchronizerObjectCount;
+
+	/* Clear the global java-only gc statistics */
+	extensions->scavengerJavaStats.clear();
+
+	/* Set the total number of ownableSynchronizerObject candidates for gc verbose report */
+	extensions->scavengerJavaStats._ownableSynchronizerCandidates = ownableSynchronizerCandidates;
+
+	/* Set up the OwnableSynchronizerObject lists in each standard heap region */
+	MM_HeapRegionDescriptorStandard *region = NULL;
+	GC_HeapRegionIteratorStandard regionIterator(extensions->heapRegionManager);
+	while (NULL != (region = regionIterator.nextRegion())) {
+		MM_HeapRegionDescriptorStandardExtension *regionExtension = MM_ConfigurationDelegate::getHeapRegionDescriptorStandardExtension(env, region);
+		for (uintptr_t i = 0; i < regionExtension->_maxListIndex; i++) {
+			MM_OwnableSynchronizerObjectList *list = &regionExtension->_ownableSynchronizerObjectLists[i];
+			if ((MEMORY_TYPE_NEW == (region->getTypeFlags() & MEMORY_TYPE_NEW))) {
+				list->startOwnableSynchronizerProcessing();
+			} else {
+				list->backupList();
+			}
+		}
+	}
+
 #if defined(J9VM_GC_FINALIZATION)
 	/* record whether finalizable processing is required in this cycle */
 	return (((MM_GCExtensions *)extensions)->finalizeListManager->isFinalizableObjectProcessingRequired()) ? shouldScavengeFinalizableObjects : 0;

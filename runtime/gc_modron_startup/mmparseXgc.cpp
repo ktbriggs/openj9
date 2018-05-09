@@ -1067,11 +1067,13 @@ j9gc_initialize_parse_gc_colon(J9JavaVM *javaVM, char **scan_start)
 	
 	if(try_scan(scan_start, "hierarchicalScanOrdering")) {
 		extensions->scavengerScanOrdering = MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_HIERARCHICAL;
+		extensions->evacuatorEnabled = false;
 		goto _exit;
 	}
 	
 	if(try_scan(scan_start, "breadthFirstScanOrdering")) {
 		extensions->scavengerScanOrdering = MM_GCExtensions::OMR_GC_SCAVENGER_SCANORDERING_BREADTH_FIRST;
+		extensions->evacuatorEnabled = false;
 		goto _exit;
 	}
 		
