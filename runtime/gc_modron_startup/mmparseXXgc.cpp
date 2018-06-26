@@ -20,7 +20,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
  *******************************************************************************/
- 
+
 /**
  * @file
  * @ingroup GC_Modron_Startup
@@ -38,6 +38,7 @@
 
 #include "mmparse.h"
 
+#include "EvacuatorBase.hpp"
 #include "GCExtensions.hpp"
 #if defined(J9VM_GC_REALTIME)
 #include "Scheduler.hpp"
@@ -75,13 +76,13 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 			}
 			continue;
 		}
-		
+
 		if (try_scan(&scan_start, "perfTraceSocket=")) {
 			continue;
 		}
 		if (try_scan(&scan_start, "perfTraceLog=")) {
 			continue;
-		}		
+		}
 		if (try_scan(&scan_start, "debug=")) {
 			if (scan_udata(&scan_start, &(extensions->debug))) {
 				returnValue = JNI_EINVAL;
@@ -121,7 +122,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				break;
 			}
 			continue;
-		}		
+		}
 		if (try_scan(&scan_start, "traceCostToCheckYield=")) {
 			if(!scan_udata_memory_size_helper(vm, &scan_start, &(extensions->traceCostToCheckYield), "traceCostToCheckYield=")) {
 				returnValue = JNI_EINVAL;
@@ -135,7 +136,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				break;
 			}
 			continue;
-		}		
+		}
 		if (try_scan(&scan_start, "verbose=")) {
 			if(!scan_udata_helper(vm, &scan_start, &(extensions->verbose), "verbose=")) {
 				returnValue = JNI_EINVAL;
@@ -148,7 +149,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				returnValue = JNI_EINVAL;
 				break;
 			}
-		
+
 			extensions->gcTrigger = extensions->gcInitialTrigger;
 			continue;
 		}
@@ -222,13 +223,13 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				returnValue = JNI_EINVAL;
 				break;
 			}
-			
+
 			if (extensions->managedAllocationContextCount <= 0) {
 				j9nls_printf(PORTLIB, J9NLS_ERROR, J9NLS_GC_OPTIONS_VALUE_MUST_BE_ABOVE, "allocationContextCount=", (UDATA)0);
 				returnValue = JNI_EINVAL;
 				break;
 			}
-			
+
 			continue;
 		}
 #endif /* J9VM_GC_REALTIME */
@@ -288,10 +289,10 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				returnValue = JNI_EINVAL;
 				break;
 			}
-		
+
 			continue;
 		}
-		
+
 		if (try_scan(&scan_start, "tarokRememberedSetCardListSize=")) {
 			if(!scan_udata_memory_size_helper(vm, &scan_start, &(extensions->tarokRememberedSetCardListSize), "tarokRememberedSetCardListSize=")) {
 				returnValue = JNI_EINVAL;
@@ -453,7 +454,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				returnValue = JNI_EINVAL;
 				break;
 			}
-			
+
 			continue;
 		}
 		if (try_scan(&scan_start, "tarokGMPIntermission=")) {
@@ -651,7 +652,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 			}
 			continue;
 		}
-		
+
 		if(try_scan(&scan_start, "cacheListLockSplit=")) {
 			if(!scan_udata_helper(vm, &scan_start, &extensions->cacheListSplit, "cacheListLockSplit=")) {
 				returnValue = JNI_EINVAL;
@@ -800,6 +801,66 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 			continue ;
 		}
 
+		if (try_scan(&scan_start, "recursiveMaximumStackDepth=")) {
+			/* Read in restricted inside copy size */
+			if(!scan_udata_helper(vm, &scan_start, &extensions->evacuatorMaximumStackDepth, "recursiveMaximumStackDepth=")) {
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			if(MM_EvacuatorBase::min_scan_stack_depth > extensions->evacuatorMaximumStackDepth) {
+				j9nls_printf(PORTLIB,J9NLS_ERROR, J9NLS_GC_OPTIONS_VALUE_MUST_BE_ABOVE, "-XXgc:recursiveMaximumStackDepth", (UDATA)MM_EvacuatorBase::min_scan_stack_depth - 1);
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			continue;
+		}
+
+		if (try_scan(&scan_start, "recursiveMaximumInsideCopySize=")) {
+			/* Read in restricted inside copy size */
+			if(!scan_udata_helper(vm, &scan_start, &extensions->evacuatorMaximumInsideCopySize, "recursiveMaximumInsideCopySize=")) {
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			if(MM_EvacuatorBase::min_inside_object_size > extensions->evacuatorMaximumInsideCopySize) {
+				j9nls_printf(PORTLIB,J9NLS_ERROR, J9NLS_GC_OPTIONS_VALUE_MUST_BE_ABOVE, "-XXgc:recursiveMaximumInsideCopySize", (UDATA)MM_EvacuatorBase::min_inside_object_size - 1);
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			continue;
+		}
+
+		if (try_scan(&scan_start, "recursiveMaximumInsideCopyDistance=")) {
+			/* Read in restricted inside copy distance */
+			if(!scan_udata_helper(vm, &scan_start, &extensions->evacuatorMaximumInsideCopyDistance, "recursiveMaximumInsideCopyDistance=")) {
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			continue;
+		}
+
+		if (try_scan(&scan_start, "recursiveWorkVolumeQuantum=")) {
+			/* Read in evacuator work quanta */
+			if(!scan_udata_helper(vm, &scan_start, &extensions->evacuatorWorkQuantumSize, "recursiveWorkVolumeQuantum=")) {
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			if(MM_EvacuatorBase::min_workspace_size > extensions->evacuatorWorkQuantumSize) {
+				j9nls_printf(PORTLIB,J9NLS_ERROR, J9NLS_GC_OPTIONS_VALUE_MUST_BE_ABOVE, "-XXgc:recursiveWorkVolumeQuantum", (UDATA)MM_EvacuatorBase::min_workspace_size - 1);
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			continue;
+		}
+
+		if (try_scan(&scan_start, "recursiveWorkVolumeQuanta=")) {
+			/* Read in evacuator work quanta */
+			if(!scan_udata_helper(vm, &scan_start, &extensions->evacuatorWorkQuanta, "recursiveWorkVolumeQuanta=")) {
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			continue;
+		}
+
 #if defined(OMR_GC_CONCURRENT_SCAVENGER)
 		if (try_scan(&scan_start, "debugConcurrentScavengerPageAlignment")) {
 			extensions->setDebugConcurrentScavengerPageAlignment(true);
@@ -833,7 +894,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				returnValue = JNI_EINVAL;
 				break;
 			}
-			
+
 			extensions->doFrequentObjectAllocationSampling = true;
 			continue;
 		}
@@ -848,7 +909,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 				returnValue = JNI_EINVAL;
 				break;
 			}
-			
+
 			extensions->frequentObjectAllocationSamplingRate = percentage;
 			extensions->doFrequentObjectAllocationSampling = true;
 			continue;
@@ -986,7 +1047,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 			extensions->fvtest_disableExplictMasterThread = true;
 			continue;
 		}
-		
+
 		if (try_scan(&scan_start, "fvtest_holdRandomThreadBeforeHandlingWorkUnitPeriod=")) {
 			if(!scan_udata_helper(vm, &scan_start, &(extensions->_holdRandomThreadBeforeHandlingWorkUnitPeriod), "fvtest_holdRandomThreadBeforeHandlingWorkUnitPeriod=")) {
 				returnValue = JNI_EINVAL;
@@ -1236,7 +1297,7 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 			}
 			continue;
 		}
-		
+
 		if (try_scan(&scan_start, "stringTableListToTreeThreshold=")) {
 			if(!scan_u32_helper(vm, &scan_start, &(extensions->_stringTableListToTreeThreshold), "stringTableListToTreeThreshold=")) {
 				returnValue = JNI_EINVAL;

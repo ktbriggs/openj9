@@ -102,8 +102,8 @@ public:
 	virtual void
 	scanRoots(MM_EnvironmentBase *env)
 	{
-		startUnfinalizedProcessing();
 		MM_RootScanner::scanRoots(env);
+		startUnfinalizedProcessing();
 	}
 
 	virtual void

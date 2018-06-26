@@ -111,8 +111,12 @@ MM_EvacuatorDelegate::cycleStart()
 {
 	_cycleCleared = false;
 
-	/* bind calling thread to this delegate instance and prepare thread environment for the cycle */
+	/* bind calling thread to this delegate instance */
 	_env = _evacuator->getEnvironment();
+	_objectModel = &(_env->getExtensions()->objectModel);
+
+	/* prepare thread environment for the cycle */
+	Debug_MM_true(0 == ((J9VMThread *)_env->getLanguageVMThread())->gcRememberedSet.count);
 	_env->getGCEnvironment()->_scavengerJavaStats.clear();
 
 	/* instantiate the root scanner for this cycle */
@@ -133,6 +137,8 @@ MM_EvacuatorDelegate::cycleEnd()
 		omrthread_monitor_exit(javaVM->finalizeMasterMonitor);
 	}
 #endif
+	_objectModel = NULL;
+	_env = NULL;
 }
 
 bool
@@ -155,12 +161,22 @@ MM_EvacuatorDelegate::objectHasIndirectObjectsInNursery(omrobjectptr_t objectptr
 		while(NULL != (slotPtr = (omrobjectptr_t*)classStaticsIterator.nextSlot())) {
 			omrobjectptr_t objectptr = *slotPtr;
 			if (NULL != objectptr){
-				Assert_MM_false(_evacuator->isInEvacuate(objectptr));
-				if (_evacuator->isInSurvivor(objectptr)){
+				if (_evacuator->isInSurvivor(objectptr) || _evacuator->isInSurvivor(objectptr)){
 					return true;
 				}
 			}
 		}
+
+		GC_ConstantPoolObjectSlotIterator constantPoolObjectSlotIterator((J9JavaVM*)_env->getLanguageVM(), classToScan, true);
+		while (NULL != (slotPtr = (omrobjectptr_t*)constantPoolObjectSlotIterator.nextSlot())) {
+			omrobjectptr_t objectptr = *slotPtr;
+			if (NULL != objectptr) {
+				if (_evacuator->isInSurvivor(objectptr) || _evacuator->isInSurvivor(objectptr)) {
+					return true;
+				}
+			}
+		}
+
 		classToScan = classToScan->replacedClass;
 	} while (NULL != classToScan);
 
@@ -183,6 +199,14 @@ MM_EvacuatorDelegate::scanIndirectObjects(omrobjectptr_t objectptr)
 				shouldBeRemembered = true;
 			}
 		}
+
+		GC_ConstantPoolObjectSlotIterator constantPoolObjectSlotIterator((J9JavaVM*)_env->getLanguageVM(), classToScan, true);
+		while ((slotPtr = constantPoolObjectSlotIterator.nextSlot()) != NULL) {
+			if (_evacuator->evacuateRootObject(slotPtr)) {
+				shouldBeRemembered = true;
+			}
+		}
+
 		slotPtr = (omrobjectptr_t *)&(classToScan->classObject);
 		if (_evacuator->evacuateRootObject(slotPtr)) {
 			shouldBeRemembered = true;
@@ -272,10 +296,10 @@ MM_EvacuatorDelegate::getPointerArrayObjectScanner(omrobjectptr_t objectptr, voi
 GC_IndexableObjectScanner *
 MM_EvacuatorDelegate::getSplitPointerArrayObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t splitIndex, uintptr_t splitAmount, uintptr_t flags)
 {
+	Debug_MM_true(0 < splitAmount);
 	Debug_MM_true(0 == (flags & GC_ObjectScanner::indexableObjectNoSplit));
 	return GC_PointerArrayObjectScanner::newInstance(_env, objectptr, objectScannerState, flags, splitAmount, splitIndex);
 }
-
 
 GC_ObjectScanner *
 MM_EvacuatorDelegate::getReferenceObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t flags)
@@ -365,3 +389,27 @@ MM_EvacuatorDelegate::getReferenceObjectScanner(omrobjectptr_t objectptr, void *
 
 	return objectScanner;
 }
+
+#if defined(EVACUATOR_DEBUG)
+void
+MM_EvacuatorDelegate::debugValidateObject(omrobjectptr_t objectptr)
+{
+	J9Class *clazz = (J9Class *)J9GC_J9OBJECT_CLAZZ(objectptr);
+	if ((uintptr_t)0x99669966 != clazz->eyecatcher) {
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
+		omrtty_printf("%5lu %2llu %2llu:    assert; Invalid object header: object=%p; clazz=%p; *object=%p\n;", _controller->getEpoch()->gc, (uint64_t)_controller->getEpoch()->epoch, (uint64_t)_evacuator->getWorkerIndex(), objectptr, clazz, *objectptr);
+		Debug_MM_true(false);
+	}
+}
+
+void
+MM_EvacuatorDelegate::debugValidateObject(MM_ForwardedHeader *forwardedHeader)
+{
+	J9Class* clazz = _objectModel->getPreservedClass(forwardedHeader);
+	if ((uintptr_t)0x99669966 != clazz->eyecatcher) {
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
+		omrtty_printf("%5lu %2llu %2llu:    assert; Invalid forwarded header: object=%p; clazz=%p; *object=%p; forwarded=%p\n;", _controller->getEpoch()->gc, (uint64_t)_controller->getEpoch()->epoch, (uint64_t)_evacuator->getWorkerIndex(), forwardedHeader->getObject(), clazz, *(forwardedHeader->getObject()), forwardedHeader->getForwardedObject());
+		Debug_MM_true(false);
+	}
+}
+#endif /* defined(EVACUATOR_DEBUG) */
