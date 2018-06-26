@@ -39,7 +39,7 @@
 #include "HeapRegionIterator.hpp"
 #include "InterRegionRememberedSet.hpp"
 #include "MarkMap.hpp"
-#include "MixedObjectIterator.hpp"
+#include "MixedObjectScanner.hpp"
 #include "PointerArrayIterator.hpp"
 #include "Task.hpp"
 #include "WorkPacketsVLHGC.hpp"
@@ -161,11 +161,12 @@ MM_GlobalMarkCardScrubber::scrubMixedObject(MM_EnvironmentVLHGC *env, J9Object *
 
 	/* No need to look at the class since it is immutable. However we can't assert that it's marked since the compactor may have deleted part of the mark map. */ 
 	
-	GC_MixedObjectIterator mixedObjectIterator(env->getOmrVM(), objectPtr);
-	GC_SlotObject *slotObject = NULL;
-	while (doScrub && (NULL != (slotObject = mixedObjectIterator.nextSlot()))) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (doScrub && (NULL != slotObject)) {
 		J9Object* toObject = slotObject->readReferenceFromSlot();
 		doScrub = mayScrubReference(env, objectPtr, toObject);
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 	
 	return doScrub;

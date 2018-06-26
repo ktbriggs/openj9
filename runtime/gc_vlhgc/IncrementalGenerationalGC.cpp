@@ -68,6 +68,7 @@
 #include "MemorySpace.hpp"
 #include "MemorySubSpace.hpp"
 #include "MemorySubSpaceTarok.hpp"
+#include "MixedObjectScanner.hpp"
 #include "OMRVMInterface.hpp"
 #include "ParallelTask.hpp"
 #include "ReferenceChainWalker.hpp"
@@ -1764,12 +1765,12 @@ MM_IncrementalGenerationalGC::verifyMarkMapClosure(MM_EnvironmentVLHGC *env, MM_
 				{
 					Assert_MM_true(_extensions->classLoaderRememberedSet->isInstanceRemembered(env, object));
 					
-					GC_MixedObjectIterator mixedObjectIterator(_javaVM->omrVM, object);
-					GC_SlotObject *slotObject = NULL;
-		
-					while (NULL != (slotObject = mixedObjectIterator.nextSlot())) {
+					GC_MixedObjectScanner mixedObjectScanner(env, object, 0);
+					GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+					while (NULL != slotObject) {
 						J9Object *target = slotObject->readReferenceFromSlot();
 						Assert_MM_true((NULL == target) || markMap->isBitSet(target));
+						slotObject = mixedObjectScanner.getNextSlot();
 					}
 				}
 				break;

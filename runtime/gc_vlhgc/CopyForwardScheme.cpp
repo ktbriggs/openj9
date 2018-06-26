@@ -77,6 +77,8 @@
 #include "MarkMap.hpp"
 #include "MemorySpace.hpp"
 #include "MemorySubSpace.hpp"
+#include "MixedObjectScanner.hpp"
+#include "MixedObjectIterator.hpp"
 #include "ObjectAccessBarrier.hpp"
 #include "ObjectAllocationInterface.hpp"
 #include "ObjectHeapIteratorAddressOrderedList.hpp"
@@ -2363,9 +2365,9 @@ MM_CopyForwardScheme::scanMixedObjectSlots(MM_EnvironmentVLHGC *env, MM_Allocati
 
 	bool success = copyAndForwardObjectClass(env, reservingContext, objectPtr);
 
-	GC_MixedObjectIterator mixedObjectIterator(_javaVM->omrVM, objectPtr);
-	GC_SlotObject *slotObject = NULL;
-	while (success && (NULL != (slotObject = mixedObjectIterator.nextSlot()))) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (success && (NULL != slotObject)) {
 		if(_tracingEnabled) {
 			PORT_ACCESS_FROM_ENVIRONMENT(env);
 			j9tty_printf(PORTLIB, "   Slot %p value: %p\n", slotObject->readAddressFromSlot(), slotObject->readReferenceFromSlot());
@@ -2373,6 +2375,7 @@ MM_CopyForwardScheme::scanMixedObjectSlots(MM_EnvironmentVLHGC *env, MM_Allocati
 
 		/* Copy/Forward the slot reference and perform any inter-region remember work that is required */
 		success = copyAndForward(env, reservingContext, objectPtr, slotObject);
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 
 	updateScanStats(env, objectPtr, reason);
@@ -2412,13 +2415,14 @@ MM_CopyForwardScheme::scanReferenceObjectSlots(MM_EnvironmentVLHGC *env, MM_Allo
 	}
 	
 	GC_SlotObject referentPtr(_javaVM->omrVM, &J9GC_J9VMJAVALANGREFERENCE_REFERENT(env, objectPtr));
-	GC_MixedObjectIterator mixedObjectIterator(_javaVM->omrVM, objectPtr);
-	GC_SlotObject *slotObject = NULL;
-	while (success && (NULL != (slotObject = mixedObjectIterator.nextSlot()))) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (success && (NULL != slotObject)) {
 		if ((slotObject->readAddressFromSlot() != referentPtr.readAddressFromSlot()) || referentMustBeMarked) {
 			/* Copy/Forward the slot reference and perform any inter-region remember work that is required */
 			success = copyAndForward(env, reservingContext, objectPtr, slotObject);
 		}
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 
 	if (SCAN_REASON_OVERFLOWED_REGION == reason) {
@@ -4490,10 +4494,9 @@ MM_CopyForwardScheme::verifyObject(MM_EnvironmentVLHGC *env, J9Object *objectPtr
 void
 MM_CopyForwardScheme::verifyMixedObjectSlots(MM_EnvironmentVLHGC *env, J9Object *objectPtr)
 {
-	GC_MixedObjectIterator mixedObjectIterator(_javaVM->omrVM, objectPtr);
-	GC_SlotObject *slotObject = NULL;
-
-	while (NULL != (slotObject = mixedObjectIterator.nextSlot())) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (NULL != slotObject) {
 		J9Object *dstObject = slotObject->readReferenceFromSlot();
 		if(!_abortInProgress && verifyIsPointerInEvacute(env, dstObject)) {
 			PORT_ACCESS_FROM_ENVIRONMENT(env);
@@ -4509,6 +4512,7 @@ MM_CopyForwardScheme::verifyMixedObjectSlots(MM_EnvironmentVLHGC *env, J9Object 
 			verifyDumpObjectDetails(env, "dstObj", dstObject);
 			Assert_MM_unreachable();
 		}
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 }
 
@@ -4530,10 +4534,9 @@ MM_CopyForwardScheme::verifyReferenceObjectSlots(MM_EnvironmentVLHGC *env, J9Obj
 		Assert_MM_unreachable();
 	}
 
-	GC_MixedObjectIterator mixedObjectIterator(_javaVM->omrVM, objectPtr);
-	GC_SlotObject *slotObject = NULL;
-
-	while (NULL != (slotObject = mixedObjectIterator.nextSlot())) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (NULL != slotObject) {
 		J9Object *dstObject = slotObject->readReferenceFromSlot();
 		if(!_abortInProgress && verifyIsPointerInEvacute(env, dstObject)) {
 			PORT_ACCESS_FROM_ENVIRONMENT(env);
@@ -4547,6 +4550,7 @@ MM_CopyForwardScheme::verifyReferenceObjectSlots(MM_EnvironmentVLHGC *env, J9Obj
 			verifyDumpObjectDetails(env, "dstPtr", dstObject);
 			Assert_MM_unreachable();
 		}
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 }
 

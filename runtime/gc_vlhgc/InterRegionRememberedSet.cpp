@@ -39,7 +39,6 @@
 #include "Dispatcher.hpp"
 #include "EnvironmentVLHGC.hpp"
 #include "HeapRegionIteratorVLHGC.hpp"
-#include "MixedObjectIterator.hpp"
 #include "PointerArrayIterator.hpp"
 #include "RememberedSetCardListBufferIterator.hpp"
 #include "RememberedSetCardListCardIterator.hpp"

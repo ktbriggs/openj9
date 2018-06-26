@@ -66,7 +66,7 @@
 #include "MemoryPool.hpp"
 #include "MemorySpace.hpp"
 #include "MemorySubSpace.hpp"
-#include "MixedObjectIterator.hpp"
+#include "MixedObjectScanner.hpp"
 #include "ObjectAccessBarrier.hpp"
 #include "ObjectHeapIteratorAddressOrderedList.hpp"
 #include "ObjectModel.hpp"
@@ -1192,8 +1192,9 @@ MM_WriteOnceCompactor::fixupMixedObject(MM_EnvironmentVLHGC* env, J9Object *obje
 	/* object may have moved so ensure that its class loader knows where it is */
 	_extensions->classLoaderRememberedSet->rememberInstance(env, objectPtr);
 	
-	GC_MixedObjectIterator it(_javaVM->omrVM, objectPtr);
-	while (GC_SlotObject* slotObject = it.nextSlot()) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (NULL != slotObject) {
 		J9Object *pointer = slotObject->readReferenceFromSlot();
 		if (NULL != pointer) {
 			J9Object *forwardedPtr = getForwardWrapper(env, pointer, cache);
@@ -1202,6 +1203,7 @@ MM_WriteOnceCompactor::fixupMixedObject(MM_EnvironmentVLHGC* env, J9Object *obje
 			}
 			_interRegionRememberedSet->rememberReferenceForCompact(env, objectPtr, forwardedPtr);
 		}
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 }
 
@@ -1779,9 +1781,11 @@ MM_WriteOnceCompactor::verifyHeapObjectSlot(J9Object* object)
 void
 MM_WriteOnceCompactor::verifyHeapMixedObject(J9Object* objectPtr)
 {
-	GC_MixedObjectIterator it(_javaVM->omrVM, objectPtr);
-	while (GC_SlotObject* slotObject = it.nextSlot()) {
+	GC_MixedObjectScanner mixedObjectScanner(env, objectPtr, 0);
+	GC_SlotObject *slotObject = mixedObjectScanner.getNextSlot();
+	while (NULL != slotObject) {
 		verifyHeapObjectSlot(slotObject->readReferenceFromSlot());
+		slotObject = mixedObjectScanner.getNextSlot();
 	}
 }
 
