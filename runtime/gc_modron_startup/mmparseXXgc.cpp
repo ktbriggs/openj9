@@ -38,6 +38,7 @@
 
 #include "mmparse.h"
 
+#include "EvacuatorBase.hpp"
 #include "GCExtensions.hpp"
 #if defined(J9VM_GC_REALTIME)
 #include "Scheduler.hpp"
@@ -725,6 +726,20 @@ gcParseXXgcArguments(J9JavaVM *vm, char *optArg)
 			}
 			if(0 == extensions->scavengerScanCacheMinimumSize) {
 				j9nls_printf(PORTLIB,J9NLS_ERROR, J9NLS_GC_OPTIONS_VALUE_MUST_BE_ABOVE, "-XXgc:scanCacheMinimumSize", (UDATA)0);
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			continue;
+		}
+
+		if (try_scan(&scan_start, "recursiveMaximumInsideCopySize=")) {
+			/* Read in restricted scan cache size */
+			if(!scan_udata_helper(vm, &scan_start, &extensions->evacuatorMaximumInsideCopySize, "recursiveMaximumInsideCopySize=")) {
+				returnValue = JNI_EINVAL;
+				break;
+			}
+			if(MM_EvacuatorBase::min_inside_object_size > extensions->evacuatorMaximumInsideCopySize) {
+				j9nls_printf(PORTLIB,J9NLS_ERROR, J9NLS_GC_OPTIONS_VALUE_MUST_BE_ABOVE, "-XXgc:recursiveMaximumInsideCopySize", (UDATA)MM_EvacuatorBase::min_inside_object_size);
 				returnValue = JNI_EINVAL;
 				break;
 			}
