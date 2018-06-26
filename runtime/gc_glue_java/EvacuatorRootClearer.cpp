@@ -45,7 +45,7 @@
 void
 MM_EvacuatorRootClearer::doSlot(omrobjectptr_t *slotPtr)
 {
-	getEvacuator()->evacuateRootObject(slotPtr);
+	getEvacuator()->evacuateRootObject(slotPtr, true);
 }
 
 #if defined(J9VM_GC_FINALIZATION)
@@ -73,7 +73,7 @@ MM_EvacuatorRootClearer::scanUnfinalizedObjectsComplete(MM_EnvironmentBase *env)
 #if defined(EVACUATOR_DEBUG)
 		if (_scavenger->_debugger.isDebugCycle()) {
 			OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
-			omrtty_printf("%5lu %2llu %2llu:   unfinal;\n", _scavenger->getEpoch()->gc, _scavenger->getEpoch()->epoch, getEvacuator()->getWorkerIndex());
+			omrtty_printf("%5lu %2llu %2llu:   unfinal;\n", _scavenger->getEpoch()->gc, (uint64_t)_scavenger->getEpoch()->epoch, (uint64_t)getEvacuator()->getWorkerIndex());
 		}
 #endif /* defined(EVACUATOR_DEBUG) */
 		if (!getEvacuator()->evacuateHeap()) {
@@ -91,7 +91,7 @@ MM_EvacuatorRootClearer::scanSoftReferenceObjects(MM_EnvironmentBase *env)
 	Debug_MM_true(env == _env);
 	if (_scavenger->isEvacuatorFlagSet(MM_EvacuatorDelegate::shouldScavengeSoftReferenceObjects)) {
 		reportScanningStarted(RootScannerEntity_SoftReferenceObjects);
-		scavengeReferenceObjects(J9_JAVA_CLASS_REFERENCE_SOFT);
+		scavengeReferenceObjects(J9AccClassReferenceSoft);
 		reportScanningEnded(RootScannerEntity_SoftReferenceObjects);
 	}
 }
@@ -110,7 +110,7 @@ MM_EvacuatorRootClearer::scanWeakReferenceObjects(MM_EnvironmentBase *env)
 	Debug_MM_true(env == _env);
 	if (_scavenger->isEvacuatorFlagSet(MM_EvacuatorDelegate::shouldScavengeWeakReferenceObjects)) {
 		reportScanningStarted(RootScannerEntity_WeakReferenceObjects);
-		scavengeReferenceObjects(J9_JAVA_CLASS_REFERENCE_WEAK);
+		scavengeReferenceObjects(J9AccClassReferenceWeak);
 		reportScanningEnded(RootScannerEntity_WeakReferenceObjects);
 	}
 }
@@ -127,11 +127,11 @@ MM_EvacuatorRootClearer::scanWeakReferencesComplete(MM_EnvironmentBase *env)
 		if (_scavenger->_debugger.isDebugCycle()) {
 			OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
 			if (_scavenger->areAllEvacuatorFlagsSet(MM_EvacuatorDelegate::shouldScavengeWeakReferenceObjects | MM_EvacuatorDelegate::shouldScavengeSoftReferenceObjects)) {
-				omrtty_printf("%5lu %2llu %2llu: soft+weak;\n", _scavenger->getEpoch()->gc, _scavenger->getEpoch()->epoch, getEvacuator()->getWorkerIndex());
+				omrtty_printf("%5lu %2llu %2llu: soft+weak;\n", _scavenger->getEpoch()->gc, (uint64_t)_scavenger->getEpoch()->epoch, (uint64_t)getEvacuator()->getWorkerIndex());
 			} else if (_scavenger->isEvacuatorFlagSet(MM_EvacuatorDelegate::shouldScavengeWeakReferenceObjects)) {
-				omrtty_printf("%5lu %2llu %2llu:      weak;\n", _scavenger->getEpoch()->gc, _scavenger->getEpoch()->epoch, getEvacuator()->getWorkerIndex());
+				omrtty_printf("%5lu %2llu %2llu:      weak;\n", _scavenger->getEpoch()->gc, (uint64_t)_scavenger->getEpoch()->epoch, (uint64_t)getEvacuator()->getWorkerIndex());
 			} else if (_scavenger->isEvacuatorFlagSet(MM_EvacuatorDelegate::shouldScavengeSoftReferenceObjects)) {
-				omrtty_printf("%5lu %2llu %2llu:      soft;\n", _scavenger->getEpoch()->gc, _scavenger->getEpoch()->epoch, getEvacuator()->getWorkerIndex());
+				omrtty_printf("%5lu %2llu %2llu:      soft;\n", _scavenger->getEpoch()->gc, (uint64_t)_scavenger->getEpoch()->epoch, (uint64_t)getEvacuator()->getWorkerIndex());
 			}
 		}
 #endif /* defined(EVACUATOR_DEBUG) */
@@ -145,7 +145,7 @@ MM_EvacuatorRootClearer::scanPhantomReferenceObjects(MM_EnvironmentBase *env)
 	Debug_MM_true(env == _env);
 	if (_scavenger->isEvacuatorFlagSet(MM_EvacuatorDelegate::shouldScavengePhantomReferenceObjects)) {
 		reportScanningStarted(RootScannerEntity_PhantomReferenceObjects);
-		scavengeReferenceObjects(J9_JAVA_CLASS_REFERENCE_PHANTOM);
+		scavengeReferenceObjects(J9AccClassReferencePhantom);
 		reportScanningEnded(RootScannerEntity_PhantomReferenceObjects);
 	}
 }
@@ -165,7 +165,7 @@ MM_EvacuatorRootClearer::scanPhantomReferencesComplete(MM_EnvironmentBase *env)
 #if defined(EVACUATOR_DEBUG)
 		if (_scavenger->_debugger.isDebugCycle()) {
 			OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
-			omrtty_printf("%5lu %2llu %2llu:   phantom;\n", _scavenger->getEpoch()->gc, _scavenger->getEpoch()->epoch, getEvacuator()->getWorkerIndex());
+			omrtty_printf("%5lu %2llu %2llu:   phantom;\n", _scavenger->getEpoch()->gc, (uint64_t)_scavenger->getEpoch()->epoch, (uint64_t)getEvacuator()->getWorkerIndex());
 		}
 #endif /* defined(EVACUATOR_DEBUG) */
 		/* phantom reference processing may resurrect objects - scan them now */
@@ -267,7 +267,7 @@ MM_EvacuatorRootClearer::processReferenceList(MM_HeapRegionDescriptorStandard* r
 			}
 
 			if (getEvacuator()->isInEvacuate(referent)) {
-				uintptr_t referenceObjectType = J9CLASS_FLAGS(J9GC_J9OBJECT_CLAZZ(referenceObj)) & J9_JAVA_CLASS_REFERENCE_MASK;
+				uintptr_t referenceObjectType = J9CLASS_FLAGS(J9GC_J9OBJECT_CLAZZ(referenceObj)) & J9AccClassReferenceMask;
 				/* transition the state to cleared */
 				Assert_MM_true(GC_ObjectModel::REF_STATE_INITIAL == J9GC_J9VMJAVALANGREFERENCE_STATE(_env, referenceObj));
 				J9GC_J9VMJAVALANGREFERENCE_STATE(_env, referenceObj) = GC_ObjectModel::REF_STATE_CLEARED;
@@ -276,9 +276,9 @@ MM_EvacuatorRootClearer::processReferenceList(MM_HeapRegionDescriptorStandard* r
 
 				/* Phantom references keep it's referent alive in Java 8 and doesn't in Java 9 and later */
 				J9JavaVM * javaVM = (J9JavaVM*)_env->getLanguageVM();
-				if ((J9_JAVA_CLASS_REFERENCE_PHANTOM == referenceObjectType) && ((J2SE_VERSION(javaVM) & J2SE_VERSION_MASK) <= J2SE_18)) {
+				if ((J9AccClassReferencePhantom == referenceObjectType) && ((J2SE_VERSION(javaVM) & J2SE_VERSION_MASK) <= J2SE_18)) {
 					/* Scanning will be done after the enqueuing */
-					evacuator->evacuateRootObject(&referentSlotObject);
+					evacuator->evacuateRootObject(&referentSlotObject, true);
 				} else {
 					referentSlotObject.writeReferenceToSlot(NULL);
 				}
@@ -316,21 +316,21 @@ MM_EvacuatorRootClearer::scavengeReferenceObjects(uintptr_t referenceObjectType)
 					MM_ReferenceStats *stats = NULL;
 					j9object_t head = NULL;
 					switch (referenceObjectType) {
-						case J9_JAVA_CLASS_REFERENCE_WEAK:
+						case J9AccClassReferenceWeak:
 						list->startWeakReferenceProcessing();
 						if (!list->wasWeakListEmpty()) {
 							head = list->getPriorWeakList();
 							stats = &javaStats->_weakReferenceStats;
 						}
 						break;
-						case J9_JAVA_CLASS_REFERENCE_SOFT:
+						case J9AccClassReferenceSoft:
 						list->startSoftReferenceProcessing();
 						if (!list->wasSoftListEmpty()) {
 							head = list->getPriorSoftList();
 							stats = &javaStats->_softReferenceStats;
 						}
 						break;
-						case J9_JAVA_CLASS_REFERENCE_PHANTOM:
+						case J9AccClassReferencePhantom:
 						list->startPhantomReferenceProcessing();
 						if (!list->wasPhantomListEmpty()) {
 							head = list->getPriorPhantomList();
@@ -375,13 +375,13 @@ MM_EvacuatorRootClearer::scavengeUnfinalizedObjects()
 							MM_ForwardedHeader forwardedHeader(object);
 							if (!forwardedHeader.isForwardedPointer()) {
 								Assert_MM_true(evacuator->isInEvacuate(object));
-								next = _extensions->accessBarrier->getFinalizeLink(object);
-								omrobjectptr_t finalizableObject = evacuator->evacuateRootObject(&forwardedHeader);
+								omrobjectptr_t finalizableObject = evacuator->evacuateRootObject(&forwardedHeader, true);
 								if (NULL == finalizableObject) {
 									/* Failure - the scavenger must back out the work it has done. */
 									gcEnv->_unfinalizedObjectBuffer->add(_env, object);
 								} else {
 									/* object was not previously forwarded -- it is now finalizable so push it to the local buffer */
+									next = _extensions->accessBarrier->getFinalizeLink(finalizableObject);
 									buffer.add(_env, finalizableObject);
 									gcEnv->_scavengerJavaStats._unfinalizedEnqueued += 1;
 									_scavenger->setEvacuatorFlag(MM_EvacuatorDelegate::finalizationRequired, true);

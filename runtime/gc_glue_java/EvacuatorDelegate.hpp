@@ -26,6 +26,7 @@
 
 #include "j9.h"
 #include "j9cfg.h"
+#include "j9javaaccessflags.h"
 #include "j9nonbuilder.h"
 #include "omr.h"
 
@@ -60,7 +61,8 @@ private:
 	MM_EnvironmentStandard *_env;
 	MM_Scavenger *_controller;
 	MM_Evacuator *_evacuator;
-	MM_EvacuatorRootScanner *_rootScanner;
+	MM_EvacuatorRootScanner * _rootScanner;
+	GC_ObjectModel * _objectModel;
 	MM_Forge *_forge;
 	bool _cycleCleared;
 
@@ -140,14 +142,20 @@ public:
 	GC_ObjectScanner *
 	getObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t flags)
 	{
+		J9Class *clazz = J9GC_J9OBJECT_CLAZZ(objectptr);
+
 		/* object class must have proper eye catcher */
-		Debug_MM_true((UDATA)0x99669966 == J9GC_J9OBJECT_CLAZZ(objectptr)->eyecatcher);
+		Debug_MM_true((UDATA)0x99669966 == clazz->eyecatcher);
 		Debug_MM_true(GC_ObjectScanner::isHeapScan(flags) ^ GC_ObjectScanner::isRootScan(flags));
 		GC_ObjectScanner *objectScanner = NULL;
 
-		switch(_env->getExtensions()->objectModel.getScanType(objectptr)) {
-		case GC_ObjectModel::SCAN_ATOMIC_MARKABLE_REFERENCE_OBJECT:
+		switch(_objectModel->getScanType(objectptr)) {
 		case GC_ObjectModel::SCAN_MIXED_OBJECT:
+			if (1 < (uintptr_t)clazz->instanceDescription) {
+				objectScanner = GC_MixedObjectScanner::newInstance(_env, objectptr, objectScannerState, flags);
+			}
+			break;
+		case GC_ObjectModel::SCAN_ATOMIC_MARKABLE_REFERENCE_OBJECT:
 		case GC_ObjectModel::SCAN_CLASS_OBJECT:
 		case GC_ObjectModel::SCAN_CLASSLOADER_OBJECT:
 			objectScanner = GC_MixedObjectScanner::newInstance(_env, objectptr, objectScannerState, flags);
@@ -159,7 +167,7 @@ public:
 			objectScanner = getOwnableSynchronizerObjectScanner(objectptr, objectScannerState, flags);
 			break;
 		case GC_ObjectModel::SCAN_POINTER_ARRAY_OBJECT:
-			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags);
+			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags | GC_ObjectScanner::indexableObjectNoSplit);
 			break;
 		case GC_ObjectModel::SCAN_PRIMITIVE_ARRAY_OBJECT:
 			break;
@@ -173,9 +181,15 @@ public:
 	GC_IndexableObjectScanner *getSplitPointerArrayObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t splitIndex, uintptr_t splitAmount, uintptr_t flags);
 
 	bool
+	isIndexablePointerArray(omrobjectptr_t object)
+	{
+		return (OBJECT_HEADER_SHAPE_POINTERS == J9GC_CLASS_SHAPE(J9GC_J9OBJECT_CLAZZ(object)));
+	}
+
+	bool
 	isIndexablePointerArray(MM_ForwardedHeader *forwardedHeader)
 	{
-		return (OBJECT_HEADER_SHAPE_POINTERS == J9GC_CLASS_SHAPE(_env->getExtensions()->objectModel.getPreservedClass(forwardedHeader)));
+		return (OBJECT_HEADER_SHAPE_POINTERS == J9GC_CLASS_SHAPE(_objectModel->getPreservedClass(forwardedHeader)));
 	}
 
 	fomrobject_t *getIndexableDataBounds(omrobjectptr_t indexableObject, uintptr_t *numberOfElements);
@@ -201,23 +215,20 @@ public:
 		, _controller(NULL)
 		, _evacuator(NULL)
 		, _rootScanner(NULL)
+		, _objectModel(NULL)
 		, _forge(NULL)
 		, _cycleCleared(false)
 	{ }
 
 #if defined(EVACUATOR_DEBUG)
-	void
-	debugValidateObject(omrobjectptr_t objectptr)
+	bool
+	isValidObject(omrobjectptr_t objectptr)
 	{
-		J9Class* clazz = J9GC_J9OBJECT_CLAZZ(objectptr);
-		Debug_MM_true2(_env, (uintptr_t)0x99669966 == clazz->eyecatcher, "Invalid object header: object=%p; clazz=%p\n;", objectptr, clazz);
+		J9Class *clazz = (J9Class *)J9GC_J9OBJECT_CLAZZ(objectptr);
+		return (uintptr_t)0x99669966 == clazz->eyecatcher;
 	}
-	void
-	debugValidateObject(MM_ForwardedHeader *forwardedHeader)
-	{
-		J9Class* clazz = _env->getExtensions()->objectModel.getPreservedClass(forwardedHeader);
-		Debug_MM_true2(_env, (uintptr_t)0x99669966 == clazz->eyecatcher, "Invalid forwarded header: object=%p; clazz=%p\n;", forwardedHeader->getObject(), clazz);
-	}
+	void debugValidateObject(omrobjectptr_t objectptr);
+	void debugValidateObject(MM_ForwardedHeader *forwardedHeader);
 	const char *
 	debugGetClassname(omrobjectptr_t objectptr, char *buffer, uintptr_t bufferLength)
 	{
@@ -247,8 +258,8 @@ public:
 		} else {
 			f="~";
 		}
-		omrtty_printf("reference %s[%c]: %llx %s%llx %c%c%c%c %-31s %s\n", s[op], t[referenceObjectType/J9_JAVA_CLASS_REFERENCE_WEAK], (uintptr_t)reference, f,
-				(uintptr_t)referent, (referentMustBeCleared?'C':'c'), (isObjectInNewSpace?'N':'n'), (referentMustBeMarked?'M':'m'), (shouldScavenge?'S':'s'),
+		omrtty_printf("reference %s[%c]: %llx %s%llx %c%c%c%c %-31s %s\n", s[op], t[referenceObjectType/J9AccClassReferenceWeak], (uint64_t)reference, f,
+				(uint64_t)referent, (referentMustBeCleared?'C':'c'), (isObjectInNewSpace?'N':'n'), (referentMustBeMarked?'M':'m'), (shouldScavenge?'S':'s'),
 				debugGetClassname(reference, &oname[0], 32), (NULL != referent) ? debugGetClassname(referent, &rname[0], 32) : "nil");
 	}
 #endif /* defined(EVACUATOR_DEBUG) */

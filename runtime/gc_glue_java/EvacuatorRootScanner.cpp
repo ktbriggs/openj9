@@ -183,11 +183,12 @@ MM_EvacuatorRootScanner::scavengeFinalizableObjects()
 			if(_scavenger->isObjectInEvacuateMemory(systemObject)) {
 				MM_ForwardedHeader forwardedHeader(systemObject);
 				if (!forwardedHeader.isForwardedPointer()) {
-					next = _extensions->accessBarrier->getFinalizeLink(systemObject);
-					omrobjectptr_t copiedObject = evacuator->evacuateRootObject(&forwardedHeader);
+					omrobjectptr_t copiedObject = evacuator->evacuateRootObject(&forwardedHeader, true);
 					if (NULL == copiedObject) {
+						next = _extensions->accessBarrier->getFinalizeLink(systemObject);
 						objectBuffer.add(_env, systemObject);
 					} else {
+						next = _extensions->accessBarrier->getFinalizeLink(copiedObject);
 						objectBuffer.add(_env, copiedObject);
 					}
 				} else {
@@ -216,10 +217,12 @@ MM_EvacuatorRootScanner::scavengeFinalizableObjects()
 				MM_ForwardedHeader forwardedHeader(defaultObject);
 				if (!forwardedHeader.isForwardedPointer()) {
 					next = _extensions->accessBarrier->getFinalizeLink(defaultObject);
-					omrobjectptr_t copiedObject = evacuator->evacuateRootObject(&forwardedHeader);
+					omrobjectptr_t copiedObject = evacuator->evacuateRootObject(&forwardedHeader, true);
 					if (NULL == copiedObject) {
+						next = _extensions->accessBarrier->getFinalizeLink(defaultObject);
 						objectBuffer.add(_env, defaultObject);
 					} else {
+						next = _extensions->accessBarrier->getFinalizeLink(copiedObject);
 						objectBuffer.add(_env, copiedObject);
 					}
 				} else {
@@ -248,10 +251,12 @@ MM_EvacuatorRootScanner::scavengeFinalizableObjects()
 				MM_ForwardedHeader forwardedHeader(referenceObject);
 				if (!forwardedHeader.isForwardedPointer()) {
 					next = _extensions->accessBarrier->getReferenceLink(referenceObject);
-					omrobjectptr_t copiedObject = evacuator->evacuateRootObject(&forwardedHeader);
+					omrobjectptr_t copiedObject = evacuator->evacuateRootObject(&forwardedHeader, true);
 					if (NULL == copiedObject) {
+						next = _extensions->accessBarrier->getReferenceLink(referenceObject);
 						referenceBuffer.add(_env, referenceObject);
 					} else {
+						next = _extensions->accessBarrier->getReferenceLink(copiedObject);
 						referenceBuffer.add(_env, copiedObject);
 					}
 				} else {
