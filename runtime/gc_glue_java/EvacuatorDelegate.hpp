@@ -150,13 +150,13 @@ public:
 		case GC_ObjectModel::SCAN_MIXED_OBJECT:
 		case GC_ObjectModel::SCAN_CLASS_OBJECT:
 		case GC_ObjectModel::SCAN_CLASSLOADER_OBJECT:
-			objectScanner = GC_MixedObjectScanner::newInstance(_env, objectptr, objectScannerState, flags);
+			objectScanner = GC_MixedObjectScanner::newInstance(_env, objectptr, objectScannerState, flags | GC_ObjectScanner::preselectHotSlot);
 			break;
 		case GC_ObjectModel::SCAN_REFERENCE_MIXED_OBJECT:
-			objectScanner = getReferenceObjectScanner(objectptr, objectScannerState, flags);
+			objectScanner = getReferenceObjectScanner(objectptr, objectScannerState, flags | GC_ObjectScanner::preselectHotSlot);
 			break;
 		case GC_ObjectModel::SCAN_OWNABLESYNCHRONIZER_OBJECT:
-			objectScanner = getOwnableSynchronizerObjectScanner(objectptr, objectScannerState, flags);
+			objectScanner = getOwnableSynchronizerObjectScanner(objectptr, objectScannerState, flags | GC_ObjectScanner::preselectHotSlot);
 			break;
 		case GC_ObjectModel::SCAN_POINTER_ARRAY_OBJECT:
 			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags);
