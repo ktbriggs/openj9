@@ -106,6 +106,8 @@ public:
 	MMINLINE static GC_PointerArrayObjectScanner *
 	newInstance(MM_EnvironmentBase *env, omrobjectptr_t objectPtr, void *allocSpace, uintptr_t flags, uintptr_t splitAmount, uintptr_t startIndex = 0)
 	{
+		Assert_MM_true((0 == splitAmount) == GC_ObjectScanner::isIndexableObjectNoSplit(flags));
+
 		GC_PointerArrayObjectScanner *objectScanner = (GC_PointerArrayObjectScanner *)allocSpace;
 		if (NULL != objectScanner) {
 			GC_ArrayObjectModel *arrayObjectModel = &(env->getExtensions()->indexableObjectModel);
@@ -118,7 +120,7 @@ public:
 
 			if (!GC_ObjectScanner::isIndexableObjectNoSplit(flags)) {
 				fomrobject_t *splitPtr = scanPtr + splitAmount;
-				if ((splitPtr > scanPtr) && (splitPtr < endPtr)) {
+				if (splitPtr < endPtr) {
 					endPtr = splitPtr;
 				}
 			}

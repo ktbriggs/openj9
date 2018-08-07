@@ -159,7 +159,7 @@ public:
 			objectScanner = getOwnableSynchronizerObjectScanner(objectptr, objectScannerState, flags | GC_ObjectScanner::preselectHotSlot);
 			break;
 		case GC_ObjectModel::SCAN_POINTER_ARRAY_OBJECT:
-			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags);
+			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags | GC_ObjectScanner::indexableObjectNoSplit);
 			break;
 		case GC_ObjectModel::SCAN_PRIMITIVE_ARRAY_OBJECT:
 			break;
@@ -172,11 +172,9 @@ public:
 
 	GC_IndexableObjectScanner *getSplitPointerArrayObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t splitIndex, uintptr_t splitAmount, uintptr_t flags);
 
-	bool
-	isIndexablePointerArray(MM_ForwardedHeader *forwardedHeader)
-	{
-		return (OBJECT_HEADER_SHAPE_POINTERS == J9GC_CLASS_SHAPE(_env->getExtensions()->objectModel.getPreservedClass(forwardedHeader)));
-	}
+	bool isIndexablePointerArray(omrobjectptr_t object) { return (OBJECT_HEADER_SHAPE_POINTERS == J9GC_CLASS_SHAPE(J9GC_J9OBJECT_CLAZZ(object))); }
+
+	bool isIndexablePointerArray(MM_ForwardedHeader *forwardedHeader) { return (OBJECT_HEADER_SHAPE_POINTERS == J9GC_CLASS_SHAPE(_env->getExtensions()->objectModel.getPreservedClass(forwardedHeader))); }
 
 	fomrobject_t *getIndexableDataBounds(omrobjectptr_t indexableObject, uintptr_t *numberOfElements);
 
@@ -206,6 +204,12 @@ public:
 	{ }
 
 #if defined(EVACUATOR_DEBUG)
+	bool
+	isValidObject(omrobjectptr_t objectptr)
+	{
+		J9Class* clazz = J9GC_J9OBJECT_CLAZZ(objectptr);
+		return (uintptr_t)0x99669966 == clazz->eyecatcher;
+	}
 	void
 	debugValidateObject(omrobjectptr_t objectptr)
 	{
