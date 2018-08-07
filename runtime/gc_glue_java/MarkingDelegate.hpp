@@ -130,7 +130,9 @@ public:
 		{
 			uintptr_t slotsToDo = 0;
 			uintptr_t startIndex = setupPointerArrayScanner(env, objectPtr, reason, sizeToDo, &slotsToDo);
-			objectScanner = GC_PointerArrayObjectScanner::newInstance(env, objectPtr, scannerSpace, GC_ObjectScanner::indexableObject, slotsToDo, startIndex);
+			if (0 < slotsToDo) {
+				objectScanner = GC_PointerArrayObjectScanner::newInstance(env, objectPtr, scannerSpace, GC_ObjectScanner::indexableObject, slotsToDo, startIndex);
+			}
 			break;
 		}
 		case GC_ObjectModel::SCAN_REFERENCE_MIXED_OBJECT:

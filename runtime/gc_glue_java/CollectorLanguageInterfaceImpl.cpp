@@ -372,6 +372,8 @@ MM_CollectorLanguageInterfaceImpl::scavenger_getObjectScanner(MM_EnvironmentStan
 					flags |= GC_ObjectScanner::indexableObjectNoSplit;
 				}
 			}
+			Assert_MM_true((0 == splitAmount) == GC_ObjectScanner::isIndexableObjectNoSplit(flags));
+
 			objectScanner = GC_PointerArrayObjectScanner::newInstance(env, objectPtr, allocSpace, flags, splitAmount);
 		}
 		break;
