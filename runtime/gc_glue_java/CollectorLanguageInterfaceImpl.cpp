@@ -365,10 +365,7 @@ MM_CollectorLanguageInterfaceImpl::scavenger_getObjectScanner(MM_EnvironmentStan
 		break;
 	case GC_ObjectModel::SCAN_POINTER_ARRAY_OBJECT:
 		{
-			uintptr_t splitAmount = 0;
-			if (!GC_ObjectScanner::isIndexableObjectNoSplit(flags)) {
-				splitAmount = _extensions->scavenger->getArraySplitAmount(env, _extensions->indexableObjectModel.getSizeInElements((omrarrayptr_t)objectPtr));
-			}
+			uintptr_t splitAmount = GC_ObjectScanner::isIndexableObjectNoSplit(flags) ? 0 : _extensions->scavenger->getArraySplitAmount(env, _extensions->indexableObjectModel.getSizeInElements((omrarrayptr_t)objectPtr));
 			objectScanner = GC_PointerArrayObjectScanner::newInstance(env, objectPtr, allocSpace, flags, splitAmount);
 		}
 		break;

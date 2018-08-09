@@ -116,6 +116,7 @@ public:
 		/* object class must have proper eye catcher */
 		Assert_MM_true((UDATA)0x99669966 == clazz->eyecatcher);
 
+		const uintptr_t scannerFlags = 0;
 		GC_ObjectScanner *objectScanner = NULL;
 		switch(_extensions->objectModel.getScanType(objectPtr)) {
 		case GC_ObjectModel::SCAN_ATOMIC_MARKABLE_REFERENCE_OBJECT:
@@ -123,20 +124,22 @@ public:
 		case GC_ObjectModel::SCAN_OWNABLESYNCHRONIZER_OBJECT:
 		case GC_ObjectModel::SCAN_CLASS_OBJECT:
 		case GC_ObjectModel::SCAN_CLASSLOADER_OBJECT:
-			objectScanner = GC_MixedObjectScanner::newInstance(env, objectPtr, scannerSpace, 0);
+			objectScanner = GC_MixedObjectScanner::newInstance(env, objectPtr, scannerSpace, scannerFlags);
 			*sizeToDo = sizeof(fomrobject_t) + ((GC_MixedObjectScanner *)objectScanner)->getBytesRemaining();
 			break;
 		case GC_ObjectModel::SCAN_POINTER_ARRAY_OBJECT:
 		{
 			uintptr_t slotsToDo = 0;
 			uintptr_t startIndex = setupPointerArrayScanner(env, objectPtr, reason, sizeToDo, &slotsToDo);
-			objectScanner = GC_PointerArrayObjectScanner::newInstance(env, objectPtr, scannerSpace, GC_ObjectScanner::indexableObject, slotsToDo, startIndex);
+			if (0 < slotsToDo) {
+				objectScanner = GC_PointerArrayObjectScanner::newInstance(env, objectPtr, scannerSpace, scannerFlags, slotsToDo, startIndex);
+			}
 			break;
 		}
 		case GC_ObjectModel::SCAN_REFERENCE_MIXED_OBJECT:
 		{
 			fomrobject_t *referentSlotPtr = setupReferenceObjectScanner(env, objectPtr, reason);
-			objectScanner = GC_ReferenceObjectScanner::newInstance(env, objectPtr, referentSlotPtr, scannerSpace, 0);
+			objectScanner = GC_ReferenceObjectScanner::newInstance(env, objectPtr, referentSlotPtr, scannerSpace, scannerFlags);
 			*sizeToDo = sizeof(fomrobject_t) + ((GC_ReferenceObjectScanner *)objectScanner)->getBytesRemaining();
 			break;
 		}
