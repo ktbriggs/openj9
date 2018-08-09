@@ -159,7 +159,7 @@ public:
 			objectScanner = getOwnableSynchronizerObjectScanner(objectptr, objectScannerState, flags);
 			break;
 		case GC_ObjectModel::SCAN_POINTER_ARRAY_OBJECT:
-			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags);
+			objectScanner = getPointerArrayObjectScanner(objectptr, objectScannerState, flags | GC_ObjectScanner::indexableObjectNoSplit);
 			break;
 		case GC_ObjectModel::SCAN_PRIMITIVE_ARRAY_OBJECT:
 			break;

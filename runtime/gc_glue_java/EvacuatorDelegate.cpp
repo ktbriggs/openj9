@@ -111,8 +111,11 @@ MM_EvacuatorDelegate::cycleStart()
 {
 	_cycleCleared = false;
 
-	/* bind calling thread to this delegate instance and prepare thread environment for the cycle */
+	/* bind calling thread to this delegate instance */
 	_env = _evacuator->getEnvironment();
+
+	/* prepare thread environment for the cycle */
+	Debug_MM_true(0 == ((J9VMThread *)_env->getLanguageVMThread())->gcRememberedSet.count);
 	_env->getGCEnvironment()->_scavengerJavaStats.clear();
 
 	/* instantiate the root scanner for this cycle */
@@ -272,6 +275,7 @@ MM_EvacuatorDelegate::getPointerArrayObjectScanner(omrobjectptr_t objectptr, voi
 GC_IndexableObjectScanner *
 MM_EvacuatorDelegate::getSplitPointerArrayObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t splitIndex, uintptr_t splitAmount, uintptr_t flags)
 {
+	Debug_MM_true(0 < splitAmount);
 	Debug_MM_true(0 == (flags & GC_ObjectScanner::indexableObjectNoSplit));
 	return GC_PointerArrayObjectScanner::newInstance(_env, objectptr, objectScannerState, flags, splitAmount, splitIndex);
 }
