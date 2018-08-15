@@ -280,7 +280,6 @@ MM_EvacuatorDelegate::getSplitPointerArrayObjectScanner(omrobjectptr_t objectptr
 	return GC_PointerArrayObjectScanner::newInstance(_env, objectptr, objectScannerState, flags, splitAmount, splitIndex);
 }
 
-
 GC_ObjectScanner *
 MM_EvacuatorDelegate::getReferenceObjectScanner(omrobjectptr_t objectptr, void *objectScannerState, uintptr_t flags)
 {
@@ -369,3 +368,27 @@ MM_EvacuatorDelegate::getReferenceObjectScanner(omrobjectptr_t objectptr, void *
 
 	return objectScanner;
 }
+
+#if defined(EVACUATOR_DEBUG)
+void
+MM_EvacuatorDelegate::debugValidateObject(omrobjectptr_t objectptr)
+{
+	J9Class *clazz = (J9Class *)J9GC_J9OBJECT_CLAZZ(objectptr);
+	if ((uintptr_t)0x99669966 != clazz->eyecatcher) {
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
+		omrtty_printf("%5lu %2llu %2llu:    assert; Invalid object header: object=%p; clazz=%p; *object=%p\n;", _controller->getEpoch()->gc, _controller->getEpoch()->epoch, _evacuator->getWorkerIndex(), objectptr, clazz, *objectptr);
+		Debug_MM_true(false);
+	}
+}
+
+void
+MM_EvacuatorDelegate::debugValidateObject(MM_ForwardedHeader *forwardedHeader)
+{
+	J9Class* clazz = _env->getExtensions()->objectModel.getPreservedClass(forwardedHeader);
+	if ((uintptr_t)0x99669966 != clazz->eyecatcher) {
+		OMRPORT_ACCESS_FROM_ENVIRONMENT(_env);
+		omrtty_printf("%5lu %2llu %2llu:    assert; Invalid forwarded header: object=%p; clazz=%p; *object=%p; forwarded=%p\n;", _controller->getEpoch()->gc, _controller->getEpoch()->epoch, _evacuator->getWorkerIndex(), forwardedHeader->getObject(), clazz, *(forwardedHeader->getObject()), forwardedHeader->getForwardedObject());
+		Debug_MM_true(false);
+	}
+}
+#endif /* defined(EVACUATOR_DEBUG) */
