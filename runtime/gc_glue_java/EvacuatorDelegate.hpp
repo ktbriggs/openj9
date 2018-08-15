@@ -206,18 +206,14 @@ public:
 	{ }
 
 #if defined(EVACUATOR_DEBUG)
-	void
-	debugValidateObject(omrobjectptr_t objectptr)
+	bool
+	isValidObject(omrobjectptr_t objectptr)
 	{
-		J9Class* clazz = J9GC_J9OBJECT_CLAZZ(objectptr);
-		Debug_MM_true2(_env, (uintptr_t)0x99669966 == clazz->eyecatcher, "Invalid object header: object=%p; clazz=%p\n;", objectptr, clazz);
+		J9Class *clazz = (J9Class *)J9GC_J9OBJECT_CLAZZ(objectptr);
+		return (uintptr_t)0x99669966 == clazz->eyecatcher;
 	}
-	void
-	debugValidateObject(MM_ForwardedHeader *forwardedHeader)
-	{
-		J9Class* clazz = _env->getExtensions()->objectModel.getPreservedClass(forwardedHeader);
-		Debug_MM_true2(_env, (uintptr_t)0x99669966 == clazz->eyecatcher, "Invalid forwarded header: object=%p; clazz=%p\n;", forwardedHeader->getObject(), clazz);
-	}
+	void debugValidateObject(omrobjectptr_t objectptr);
+	void debugValidateObject(MM_ForwardedHeader *forwardedHeader);
 	const char *
 	debugGetClassname(omrobjectptr_t objectptr, char *buffer, uintptr_t bufferLength)
 	{

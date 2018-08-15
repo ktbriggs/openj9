@@ -118,7 +118,7 @@ public:
 
 			if (!GC_ObjectScanner::isIndexableObjectNoSplit(flags)) {
 				fomrobject_t *splitPtr = scanPtr + splitAmount;
-				if ((splitPtr > scanPtr) && (splitPtr < endPtr)) {
+				if (splitPtr < endPtr) {
 					endPtr = splitPtr;
 				}
 			}
