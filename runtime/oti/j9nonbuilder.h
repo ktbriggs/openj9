@@ -1539,9 +1539,9 @@ typedef struct J9DbgROMClassBuilder {
 	UDATA classFileParserBufferSize;
 	UDATA bufferManagerBufferSize;
 	U_8* classFileBuffer;
-	U_8* bufferManagerBuffer;
 	U_8* anonClassNameBuffer;
 	UDATA anonClassNameBufferSize;
+	U_8* bufferManagerBuffer;
 	struct J9DbgStringInternTable stringInternTable;
 } J9DbgROMClassBuilder;
 
@@ -2954,6 +2954,9 @@ typedef struct J9Class {
 #define J9INTERFACECLASS_ITABLEMETHODCOUNT(clazz) ((clazz)->totalInstanceSize)
 #define J9INTERFACECLASS_SET_ITABLEMETHODCOUNT(clazz, value) (clazz)->totalInstanceSize = (value)
 
+#define J9ARRAYCLASS_SET_STRIDE(clazz, strideLength) ((clazz)->flattenedClassCache) = (J9FlattenedClassCache*)(UDATA)(strideLength)
+#define J9ARRAYCLASS_GET_STRIDE(clazz) ((UDATA)((clazz)->flattenedClassCache))
+
 typedef struct J9ArrayClass {
 	UDATA eyecatcher;
 	struct J9ROMClass* romClass;
@@ -3003,6 +3006,10 @@ typedef struct J9ArrayClass {
 #if defined(J9VM_OPT_VALHALLA_NESTMATES)
 	struct J9Class* nestHost;
 #endif /* defined(J9VM_OPT_VALHALLA_NESTMATES) */
+#if defined(J9VM_OPT_VALHALLA_VALUE_TYPES)
+	/* Added temporarily for consistency */
+	UDATA flattenedElementSize;
+#endif /* defined(J9VM_OPT_VALHALLA_VALUE_TYPES) */
 } J9ArrayClass;
 
 typedef struct J9HookedNative {

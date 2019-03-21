@@ -40,7 +40,6 @@ RUN yum -y update \
     bzip2 \
     ca-certificates \
     cups-devel \
-    cmake \
     cpio \
     curl-devel `# This is being used for git` \
     elfutils-libelf-devel \
@@ -126,7 +125,21 @@ RUN wget -O - http://cpanmin.us | perl - --self-upgrade \
   && cpanm Text::CSV \
   && cpanm JSON \
   && cpanm XML::Parser
-  
+
+# Install make 4.1
+RUN cd /tmp \
+  && wget -O make-4.1.tar.gz "http://ftp.gnu.org/gnu/make/make-4.1.tar.gz" \
+  && tar xvf make-4.1.tar.gz \
+  && rm -f make-4.1.tar.gz \
+  && cd make-4.1/ \
+  && ./configure \
+  && make \
+  && make install \
+  && rm -f /usr/local/bin/gmake \
+  && ln -s /usr/local/bin/make /usr/local/bin/gmake \
+  && cd .. \
+  && rm -rf /tmp/make-4.1
+
 # Install nasm-2.13.03
 RUN cd /tmp \
   && wget https://www.nasm.us/pub/nasm/releasebuilds/2.13.03/nasm-2.13.03.tar.gz \
@@ -136,6 +149,16 @@ RUN cd /tmp \
   && ./configure -prefix=/usr/local \
   && make install \
   && rm -rf /tmp/nasm-2.13.03
+
+# Install cmake version 3.11.4
+RUN cd /tmp \
+  && wget https://cmake.org/files/v3.11/cmake-3.11.4.tar.gz \
+  && tar xzf cmake-3.11.4.tar.gz \
+  && rm cmake-3.11.4.tar.gz \
+  && cd /tmp/cmake-3.11.4 \
+  && ./configure \
+  && make \
+  && make install
 
 #Building and setting up git version 2.5.3
 RUN cd /usr/src \
